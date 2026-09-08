@@ -8,9 +8,10 @@ import tornado.http1connection
 import tornado.httpserver
 import tornado.httputil
 import tornado.ioloop
+import tornado.testing
 import tornado.web
-from tornado.testing import AsyncHTTPTestCase
-from webargs import fields, missing
+
+from webargs import fields, missing, validate
 from webargs.core import json, parse_json
 from webargs.tornadoparser import (
     WebArgsTornadoMultiDictProxy,
@@ -20,12 +21,17 @@ from webargs.tornadoparser import (
 )
 
 
+class BaseAsyncTestCase(tornado.testing.AsyncHTTPTestCase):
+    # this isn't a real test case itself
+    __test__ = False
+
+
 name = "name"
 value = "value"
 
 
 class AuthorSchema(ma.Schema):
-    name = fields.Str(missing="World", validate=lambda n: len(n) >= 3)
+    name = fields.Str(load_default="World", validate=validate.Length(min=3))
     works = fields.List(fields.Str())
 
 
@@ -133,11 +139,12 @@ class TestJSONArgs:
         result = parser.load_json(request, author_schema)
         assert result == {}
 
-    def test_it_should_handle_type_error_on_load_json(self, loop):
+    @pytest.mark.usefixtures("current_loop")
+    def test_it_should_handle_type_error_on_load_json(self):
         # but this is different from the test above where the payload was valid
         # and empty -- missing vs {}
-        # NOTE: `loop` is the pytest-aiohttp event loop fixture, but it's
-        # important to get an event loop here so that we can construct a future
+        # NOTE: the `current_loop` fixture sets a current event loop,
+        # which is required here so that we can construct a future
         request = make_request(
             body=tornado.concurrent.Future(),
             headers={"Content-Type": "application/json"},
@@ -194,14 +201,17 @@ class TestFilesArgs:
 
 class TestErrorHandler:
     def test_it_should_raise_httperror_on_failed_validation(self):
-        args = {"foo": fields.Field(validate=lambda x: False)}
+        def always_fail(_):
+            raise ma.ValidationError("oops")
+
+        args = {"foo": fields.Raw(validate=always_fail)}
         with pytest.raises(tornado.web.HTTPError):
             parser.parse(args, make_json_request({"foo": 42}))
 
 
 class TestParse:
     def test_it_should_parse_query_arguments(self):
-        attrs = {"string": fields.Field(), "integer": fields.List(fields.Int())}
+        attrs = {"string": fields.Raw(), "integer": fields.List(fields.Int())}
 
         request = make_get_request(
             [("string", "value"), ("integer", "1"), ("integer", "2")]
@@ -213,7 +223,7 @@ class TestParse:
         assert parsed["string"] == value
 
     def test_it_should_parse_form_arguments(self):
-        attrs = {"string": fields.Field(), "integer": fields.List(fields.Int())}
+        attrs = {"string": fields.Raw(), "integer": fields.List(fields.Int())}
 
         request = make_form_request(
             [("string", "value"), ("integer", "1"), ("integer", "2")]
@@ -281,7 +291,7 @@ class TestParse:
         assert parsed["integer"] == [1, 2]
 
     def test_it_should_parse_required_arguments(self):
-        args = {"foo": fields.Field(required=True)}
+        args = {"foo": fields.Raw(required=True)}
 
         request = make_json_request({})
 
@@ -302,7 +312,7 @@ class TestUseArgs:
         class Handler:
             request = make_json_request({"key": "value"})
 
-            @use_args({"key": fields.Field()})
+            @use_args({"key": fields.Raw()})
             def get(self, *args, **kwargs):
                 assert args[0] == {"key": "value"}
                 assert kwargs == {}
@@ -317,7 +327,7 @@ class TestUseArgs:
         class Handler:
             request = make_json_request({"key": "value"})
 
-            @use_kwargs({"key": fields.Field()})
+            @use_kwargs({"key": fields.Raw()})
             def get(self, *args, **kwargs):
                 assert args == ()
                 assert kwargs == {"key": "value"}
@@ -329,10 +339,14 @@ class TestUseArgs:
         assert result is True
 
     def test_it_should_be_validate_arguments_when_validator_is_passed(self):
+        def validator(args):
+            if args["foo"] <= 42:
+                raise ma.ValidationError("invalid")
+
         class Handler:
             request = make_json_request({"foo": 41})
 
-            @use_kwargs({"foo": fields.Int()}, validate=lambda args: args["foo"] > 42)
+            @use_kwargs({"foo": fields.Int()}, validate=validator)
             def get(self, args):
                 return True
 
@@ -459,7 +473,7 @@ echo_app = tornado.web.Application(
 )
 
 
-class TestApp(AsyncHTTPTestCase):
+class TestApp(BaseAsyncTestCase):
     def get_app(self):
         return echo_app
 
@@ -527,7 +541,7 @@ validate_app = tornado.web.Application(
 )
 
 
-class TestValidateApp(AsyncHTTPTestCase):
+class TestValidateApp(BaseAsyncTestCase):
     def get_app(self):
         return validate_app
 

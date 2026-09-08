@@ -103,8 +103,8 @@ When you need more flexibility in defining input schemas, you can pass a marshma
         id = fields.Int(dump_only=True)  # read-only (won't be parsed by webargs)
         username = fields.Str(required=True)
         password = fields.Str(load_only=True)  # write-only
-        first_name = fields.Str(missing="")
-        last_name = fields.Str(missing="")
+        first_name = fields.Str(load_default="")
+        last_name = fields.Str(load_default="")
         date_registered = fields.DateTime(dump_only=True)
 
 
@@ -121,7 +121,7 @@ When you need more flexibility in defining input schemas, you can pass a marshma
 
 
     # You can add additional parameters
-    @use_kwargs({"posts_per_page": fields.Int(missing=10)}, location="query")
+    @use_kwargs({"posts_per_page": fields.Int(load_default=10)}, location="query")
     @use_args(UserSchema())
     def profile_posts(args, posts_per_page):
         username = args["username"]
@@ -201,6 +201,7 @@ precedence over these defaults, as in
 
     parser = Parser(unknown=INCLUDE)
 
+
     # because `unknown` is set on the parser, `DEFAULT_UNKNOWN_BY_LOCATION` has
     # effect and `INCLUDE` will always be used
     @app.route("/", methods=["POST"])
@@ -232,6 +233,7 @@ If you wish to use the value of `unknown` specified by a schema, simply pass
 
 
     app = Flask(__name__)
+
 
     # because unknown=None was passed, no value is passed during schema loading
     # as a result, the schema's behavior (EXCLUDE) is used
@@ -305,8 +307,8 @@ Consider the following use cases:
         id = fields.Int(dump_only=True)
         username = fields.Str(required=True)
         password = fields.Str(load_only=True)
-        first_name = fields.Str(missing="")
-        last_name = fields.Str(missing="")
+        first_name = fields.Str(load_default="")
+        last_name = fields.Str(load_default="")
         date_registered = fields.DateTime(dump_only=True)
 
 
@@ -394,7 +396,6 @@ To add your own parser, extend :class:`Parser <webargs.core.Parser>` and impleme
 
     import re
 
-    from webargs import core
     from webargs.flaskparser import FlaskParser
 
 
@@ -485,7 +486,7 @@ Returning HTTP 400 Responses
 If you'd prefer validation errors to return status code ``400`` instead
 of ``422``, you can override ``DEFAULT_VALIDATION_STATUS`` on a :class:`Parser <webargs.core.Parser>`.
 
-Sublcass the parser for your framework to do so. For example, using Falcon:
+Subclass the parser for your framework to do so. For example, using Falcon:
 
 .. code-block:: python
 
@@ -619,8 +620,7 @@ be detected as a list when unpacking query string data:
     #   ...?foo=a&foo=b
     # and treats them as ["a"] and ["a", "b"] respectively
     @parser.use_args({"foo": CustomMultiplexingField()}, location="query")
-    def show_foos(foo):
-        ...
+    def show_foos(foo): ...
 
 
 Mixing Locations
@@ -655,6 +655,149 @@ To reduce boilerplate, you could create shortcuts, like so:
         page = query_parsed["page"]
         name = json_parsed["name"]
         # ...
+
+Argument Passing and ``arg_name``
+---------------------------------
+
+.. NOTE::
+
+    This section describes behaviors which are planned to change in ``webargs``
+    version 9. In version 8, behavior will be as follows. In version 9,
+    ``USE_ARGS_POSITIONAL`` will be removed and will always be ``False``.
+
+By default, ``webargs`` provides two ways of passing arguments via decorators,
+`Parser.use_args <webargs.core.Parser.use_args>`, and `Parser.use_kwargs <webargs.core.Parser.use_kwargs>`.
+``use_args`` passes parsed arguments as positionals, and ``use_kwargs`` expands
+dict-like parsed arguments into keyword arguments.
+
+For ``use_args``, the result is that sometimes it is non-obvious which order
+arguments will be passed in. Consider the following nearly identical example
+snippets:
+
+.. code-block:: python
+
+    # correct ordering, top-to-bottom
+    @use_args({"foo": fields.Int(), "bar": fields.Str()}, location="query")
+    @use_args({"baz": fields.Str()}, location="json")
+    def viewfunc(query_args, json_args): ...
+
+
+    # incorrect ordering, bottom-to-top
+    @use_args({"foo": fields.Int(), "bar": fields.Str()}, location="query")
+    @use_args({"baz": fields.Str()}, location="json")
+    def viewfunc(json_args, query_args): ...
+
+
+To resolve this ambiguity, ``webargs`` version 9 will pass arguments from
+``use_args`` as keyword arguments. You can opt-in to this behavior today by
+setting ``USE_ARGS_POSITIONAL = False`` on a parser class. This will cause
+webargs to pass arguments named ``{location}_args`` for each location used.
+For example,
+
+.. code-block:: python
+
+    from webargs.flaskparser import FlaskParser
+    from flask import Flask
+
+
+    class KeywordOnlyParser(FlaskParser):
+        USE_ARGS_POSITIONAL = False
+
+
+    app = Flask(__name__)
+    parser = KeywordOnlyParser()
+
+
+    @app.route("/")
+    @parser.use_args({"foo": fields.Int(), "bar": fields.Str()}, location="query")
+    @parser.use_args({"baz": fields.Str()}, location="json")
+    def myview(*, query_args, json_args): ...
+
+
+You can also customize the names of passed arguments using the ``arg_name``
+parameter:
+
+.. code-block:: python
+
+    @app.route("/")
+    @parser.use_args(
+        {"foo": fields.Int(), "bar": fields.Str()}, location="query", arg_name="query"
+    )
+    @parser.use_args({"baz": fields.Str()}, location="json", arg_name="payload")
+    def myview(*, query, payload): ...
+
+Note that ``arg_name`` is available even on parsers where
+``USE_ARGS_POSITIONAL`` is not set.
+
+Using an Alternate Argument Name Convention
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As described above, the default naming convention for ``use_args`` arguments is
+``{location}_args``. You can customize this by creating a parser class and
+overriding the ``get_default_arg_name`` method.
+
+``get_default_arg_name`` takes the ``location`` and the ``schema`` as
+arguments. The default implementation is:
+
+.. code-block:: python
+
+    def get_default_arg_name(self, location, schema):
+        return f"{location}_args"
+
+You can customize this to set different arg names. For example,
+
+.. code-block:: python
+
+    from webargs.flaskparser import FlaskParser
+
+
+    class MyParser(FlaskParser):
+        USE_ARGS_POSITIONAL = False
+
+        def get_default_arg_name(self, location, schema):
+            if location in ("json", "form", "json_or_form"):
+                return "body"
+            elif location in ("query", "querystring"):
+                return "query"
+            return location
+
+
+    @app.route("/")
+    @parser.use_args({"foo": fields.Int(), "bar": fields.Str()}, location="query")
+    @parser.use_args({"baz": fields.Str()}, location="json")
+    def myview(*, query, body): ...
+
+Additionally, this makes it possible to make custom schema classes which
+provide an argument name. For example,
+
+.. code-block:: python
+
+    from marshmallow import Schema
+    from webargs.flaskparser import FlaskParser
+
+
+    class RectangleSchema(Schema):
+        webargs_arg_name = "rectangle"
+
+        length = fields.Float()
+        width = fields.Float()
+
+
+    class MyParser(FlaskParser):
+        USE_ARGS_POSITIONAL = False
+
+        def get_default_arg_name(self, location, schema):
+            if hasattr(schema, "webargs_arg_name"):
+                if isinstance(schema.webargs_arg_name, str):
+                    return schema.webargs_arg_name
+            return super().get_default_arg_name(location, schema)
+
+
+    @app.route("/")
+    @parser.use_args({"foo": fields.Int(), "bar": fields.Str()}, location="query")
+    @parser.use_args(RectangleSchema, location="json")
+    def myview(*, rectangle, query_args): ...
+
 
 Next Steps
 ----------

@@ -1,16 +1,16 @@
 import falcon
 import marshmallow as ma
 
-from webargs import fields
+from webargs import fields, validate
 from webargs.core import json
 from webargs.falconparser import parser, use_args, use_kwargs
 
-hello_args = {"name": fields.Str(missing="World", validate=lambda n: len(n) >= 3)}
+hello_args = {"name": fields.Str(load_default="World", validate=validate.Length(min=3))}
 hello_multiple = {"name": fields.List(fields.Str())}
 
 
 class HelloSchema(ma.Schema):
-    name = fields.Str(missing="World", validate=lambda n: len(n) >= 3)
+    name = fields.Str(load_default="World", validate=validate.Length(min=3))
 
 
 hello_many_schema = HelloSchema(many=True)
@@ -19,46 +19,62 @@ hello_many_schema = HelloSchema(many=True)
 hello_exclude_schema = HelloSchema(unknown=ma.EXCLUDE)
 
 
+def set_text(resp, value):
+    resp.text = value
+
+
 class Echo:
     def on_get(self, req, resp):
         parsed = parser.parse(hello_args, req, location="query")
-        resp.body = json.dumps(parsed)
+        set_text(resp, json.dumps(parsed))
+
+
+class AsyncEcho:
+    async def on_get(self, req, resp):
+        parsed = await parser.async_parse(hello_args, req, location="query")
+        set_text(resp, json.dumps(parsed))
 
 
 class EchoForm:
     def on_post(self, req, resp):
         parsed = parser.parse(hello_args, req, location="form")
-        resp.body = json.dumps(parsed)
+        set_text(resp, json.dumps(parsed))
 
 
 class EchoJSON:
     def on_post(self, req, resp):
         parsed = parser.parse(hello_args, req, location="json")
-        resp.body = json.dumps(parsed)
+        set_text(resp, json.dumps(parsed))
 
 
 class EchoMedia:
     def on_post(self, req, resp):
         parsed = parser.parse(hello_args, req, location="media")
-        resp.body = json.dumps(parsed)
+        set_text(resp, json.dumps(parsed))
 
 
 class EchoJSONOrForm:
     def on_post(self, req, resp):
         parsed = parser.parse(hello_args, req, location="json_or_form")
-        resp.body = json.dumps(parsed)
+        set_text(resp, json.dumps(parsed))
 
 
 class EchoUseArgs:
     @use_args(hello_args, location="query")
     def on_get(self, req, resp, args):
-        resp.body = json.dumps(args)
+        set_text(resp, json.dumps(args))
+
+
+class AsyncEchoUseArgs:
+    @use_args(hello_args, location="query")
+    async def on_get(self, req, resp, args):
+        set_text(resp, json.dumps(args))
 
 
 class EchoUseKwargs:
     @use_kwargs(hello_args, location="query")
     def on_get(self, req, resp, name):
-        resp.body = json.dumps({"name": name})
+        set_text(resp, json.dumps({"name": name}))
 
 
 class EchoUseArgsValidated:
@@ -68,44 +84,46 @@ class EchoUseArgsValidated:
         location="form",
     )
     def on_post(self, req, resp, args):
-        resp.body = json.dumps(args)
+        set_text(resp, json.dumps(args))
 
 
 class EchoJSONIgnoreExtraData:
     def on_post(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_exclude_schema, req, unknown=None))
+        set_text(
+            resp, json.dumps(parser.parse(hello_exclude_schema, req, unknown=None))
+        )
 
 
 class EchoMulti:
     def on_get(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_multiple, req, location="query"))
+        set_text(resp, json.dumps(parser.parse(hello_multiple, req, location="query")))
 
 
 class EchoMultiForm:
     def on_post(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_multiple, req, location="form"))
+        set_text(resp, json.dumps(parser.parse(hello_multiple, req, location="form")))
 
 
 class EchoMultiJSON:
     def on_post(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_multiple, req))
+        set_text(resp, json.dumps(parser.parse(hello_multiple, req)))
 
 
 class EchoManySchema:
     def on_post(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_many_schema, req))
+        set_text(resp, json.dumps(parser.parse(hello_many_schema, req)))
 
 
 class EchoUseArgsWithPathParam:
     @use_args({"value": fields.Int()}, location="query")
     def on_get(self, req, resp, args, name):
-        resp.body = json.dumps(args)
+        set_text(resp, json.dumps(args))
 
 
 class EchoUseKwargsWithPathParam:
     @use_kwargs({"value": fields.Int()}, location="query")
     def on_get(self, req, resp, value, name):
-        resp.body = json.dumps({"value": value})
+        set_text(resp, json.dumps({"value": value}))
 
 
 class AlwaysError:
@@ -114,7 +132,7 @@ class AlwaysError:
             raise ma.ValidationError("something went wrong")
 
         args = {"text": fields.Str(validate=always_fail)}
-        resp.body = json.dumps(parser.parse(args, req))
+        set_text(resp, json.dumps(parser.parse(args, req)))
 
     on_post = on_get
 
@@ -122,20 +140,22 @@ class AlwaysError:
 class EchoHeaders:
     def on_get(self, req, resp):
         class HeaderSchema(ma.Schema):
-            NAME = fields.Str(missing="World")
+            NAME = fields.Str(load_default="World")
 
-        resp.body = json.dumps(parser.parse(HeaderSchema(), req, location="headers"))
+        set_text(
+            resp, json.dumps(parser.parse(HeaderSchema(), req, location="headers"))
+        )
 
 
 class EchoCookie:
     def on_get(self, req, resp):
-        resp.body = json.dumps(parser.parse(hello_args, req, location="cookies"))
+        set_text(resp, json.dumps(parser.parse(hello_args, req, location="cookies")))
 
 
 class EchoNested:
     def on_post(self, req, resp):
         args = {"name": fields.Nested({"first": fields.Str(), "last": fields.Str()})}
-        resp.body = json.dumps(parser.parse(args, req))
+        set_text(resp, json.dumps(parser.parse(args, req)))
 
 
 class EchoNestedMany:
@@ -145,7 +165,7 @@ class EchoNestedMany:
                 {"id": fields.Int(), "name": fields.Str()}, many=True
             )
         }
-        resp.body = json.dumps(parser.parse(args, req))
+        set_text(resp, json.dumps(parser.parse(args, req)))
 
 
 def use_args_hook(args, context_key="args", **kwargs):
@@ -159,11 +179,11 @@ def use_args_hook(args, context_key="args", **kwargs):
 @falcon.before(use_args_hook(hello_args, location="query"))
 class EchoUseArgsHook:
     def on_get(self, req, resp):
-        resp.body = json.dumps(req.context["args"])
+        set_text(resp, json.dumps(req.context["args"]))
 
 
 def create_app():
-    app = falcon.API()
+    app = falcon.App()
     app.add_route("/echo", Echo())
     app.add_route("/echo_form", EchoForm())
     app.add_route("/echo_json", EchoJSON())
@@ -187,4 +207,14 @@ def create_app():
     app.add_route("/echo_nested", EchoNested())
     app.add_route("/echo_nested_many", EchoNestedMany())
     app.add_route("/echo_use_args_hook", EchoUseArgsHook())
+    return app
+
+
+def create_async_app():
+    # defer import (async-capable versions only)
+    import falcon.asgi
+
+    app = falcon.asgi.App()
+    app.add_route("/async_echo", AsyncEcho())
+    app.add_route("/async_echo_use_args", AsyncEchoUseArgs())
     return app

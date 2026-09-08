@@ -6,22 +6,24 @@ Example: ::
     from marshmallow import fields
     from webargs.bottleparser import use_args
 
-    hello_args = {
-        'name': fields.Str(missing='World')
-    }
-    @route('/', method='GET', apply=use_args(hello_args))
-    def index(args):
-        return 'Hello ' + args['name']
+    hello_args = {"name": fields.Str(load_default="World")}
 
-    if __name__ == '__main__':
+
+    @route("/", method="GET", apply=use_args(hello_args))
+    def index(args):
+        return "Hello " + args["name"]
+
+
+    if __name__ == "__main__":
         run(debug=True)
 """
+
 import bottle
 
 from webargs import core
 
 
-class BottleParser(core.Parser):
+class BottleParser(core.Parser[bottle.Request]):
     """Bottle.py request argument parser."""
 
     def _handle_invalid_json_error(self, error, req, *args, **kwargs):
@@ -35,8 +37,13 @@ class BottleParser(core.Parser):
             data = req.json
         except AttributeError:
             return core.missing
+        except bottle.HTTPError as err:
+            if err.body == "Invalid JSON":
+                self._handle_invalid_json_error(err, req)
+            else:
+                raise
 
-        # unfortunately, bottle does not distinguish between an emtpy body, "",
+        # unfortunately, bottle does not distinguish between an empty body, "",
         # and a body containing the valid JSON value null, "null"
         # so these can't be properly disambiguated
         # as our best-effort solution, treat None as missing and ignore the

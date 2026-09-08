@@ -16,13 +16,14 @@ Try the following with httpie (a cURL-like utility, http://httpie.org):
     $ http POST :8000/dateadd value=1973-04-10 addend=63
     $ http POST :8000/dateadd value=2014-10-23 addend=525600 unit=minutes
 """
+
 import datetime as dt
 
-from webargs.core import json
-
 import falcon
+
 from webargs import fields, validate
-from webargs.falconparser import use_args, use_kwargs, parser
+from webargs.core import json
+from webargs.falconparser import parser, use_args, use_kwargs
 
 ### Middleware and hooks ###
 
@@ -47,7 +48,7 @@ def add_args(argmap, **kwargs):
 class HelloResource:
     """A welcome page."""
 
-    hello_args = {"name": fields.Str(missing="Friend", location="query")}
+    hello_args = {"name": fields.Str(load_default="Friend", location="query")}
 
     @use_args(hello_args)
     def on_get(self, req, resp, args):
@@ -71,7 +72,7 @@ class DateAddResource:
         "value": fields.Date(required=False),
         "addend": fields.Int(required=True, validate=validate.Range(min=1)),
         "unit": fields.Str(
-            missing="days", validate=validate.OneOf(["minutes", "days"])
+            load_default="days", validate=validate.OneOf(["minutes", "days"])
         ),
     }
 

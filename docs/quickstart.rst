@@ -8,17 +8,23 @@ Arguments are specified as a dictionary of name -> :class:`Field <marshmallow.fi
 
 .. code-block:: python
 
-    from webargs import fields, validate
+    from webargs import fields, validate, ValidationError
+
+
+    def validate_password(password):
+        if len(password) < 6:
+            raise ValidationError("Password must be at least 6 characters long")
+
 
     user_args = {
         # Required arguments
         "username": fields.Str(required=True),
         # Validation
-        "password": fields.Str(validate=lambda p: len(p) >= 6),
+        "password": fields.Str(validate=validate_password),
         # OR use marshmallow's built-in validators
         "password": fields.Str(validate=validate.Length(min=6)),
         # Default value when argument is missing
-        "display_per_page": fields.Int(missing=10),
+        "display_per_page": fields.Int(load_default=10),
         # Repeated parameter, e.g. "/?nickname=Fred&nickname=Freddie"
         "nickname": fields.List(fields.Str()),
         # Delimited list, e.g. "/?languages=python,javascript"
@@ -122,11 +128,17 @@ Each :class:`Field <marshmallow.fields.Field>` object can be validated individua
 
 .. code-block:: python
 
-    from webargs import fields
+    from webargs import fields, ValidationError
 
-    args = {"age": fields.Int(validate=lambda val: val > 0)}
 
-The validator may return either a `boolean` or raise a :exc:`ValidationError <webargs.core.ValidationError>`.
+    def is_positive(val):
+        if val <= 0:
+            raise ValidationError("Value must be positive")
+
+
+    args = {"age": fields.Int(validate=is_positive)}
+
+The validator must raise a :exc:`ValidationError <webargs.core.ValidationError>` for validation failures.
 
 .. code-block:: python
 
@@ -143,7 +155,7 @@ The validator may return either a `boolean` or raise a :exc:`ValidationError <we
 
 .. note::
 
-    If a validator returns ``None``, validation will pass. A validator must return ``False`` or raise a `ValidationError <webargs.core.ValidationError>`
+    If a validator returns ``None``, validation will pass. A validator must raise a `ValidationError <webargs.core.ValidationError>`
     for validation to fail.
 
 
@@ -184,9 +196,7 @@ Then decorate that function with :func:`Parser.error_handler <webargs.core.Parse
 
 .. code-block:: python
 
-    from webargs import flaskparser
-
-    parser = flaskparser.FlaskParser()
+    from webargs.flaskparser import parser
 
 
     class CustomError(Exception):

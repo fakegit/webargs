@@ -1,14 +1,15 @@
+import asyncio
 from io import BytesIO
 from unittest import mock
 
+import pytest
 import webtest
 import webtest_aiohttp
-import pytest
 
+from tests.apps.aiohttp_app import create_app
 from webargs import fields
 from webargs.aiohttpparser import AIOHTTPParser
 from webargs.testing import CommonTestCase
-from tests.apps.aiohttp_app import create_app
 
 
 @pytest.fixture
@@ -23,12 +24,12 @@ class TestAIOHTTPParser(CommonTestCase):
     def create_app(self):
         return create_app()
 
-    def create_testapp(self, app, loop):
-        return webtest_aiohttp.TestApp(app, loop=loop)
+    def create_testapp(self, app):
+        return webtest_aiohttp.TestApp(app, loop=asyncio.new_event_loop())
 
     @pytest.fixture
-    def testapp(self, loop):
-        return self.create_testapp(self.create_app(), loop)
+    def testapp(self):
+        return self.create_testapp(self.create_app())
 
     @pytest.mark.skip(reason="files location not supported for aiohttpparser")
     def test_parse_files(self, testapp):
@@ -78,7 +79,13 @@ class TestAIOHTTPParser(CommonTestCase):
             "json_parsed": {"name": "Steve"},
         }
 
+    def test_validation_error_returns_422_response(self, testapp):
+        res = testapp.post_json("/echo_json", {"name": "b"}, expect_errors=True)
+        assert res.status_code == 422
+        assert res.json == {"json": {"name": ["Shorter than minimum length 3."]}}
 
+
+@pytest.mark.asyncio
 async def test_aiohttpparser_synchronous_error_handler(web_request):
     parser = AIOHTTPParser()
 
@@ -90,11 +97,12 @@ async def test_aiohttpparser_synchronous_error_handler(web_request):
         raise CustomError("foo")
 
     with pytest.raises(CustomError):
-        await parser.parse(
+        await parser.async_parse(
             {"foo": fields.Int(required=True)}, web_request, location="query"
         )
 
 
+@pytest.mark.asyncio
 async def test_aiohttpparser_asynchronous_error_handler(web_request):
     parser = AIOHTTPParser()
 
@@ -111,6 +119,6 @@ async def test_aiohttpparser_asynchronous_error_handler(web_request):
         await inner()
 
     with pytest.raises(CustomError):
-        await parser.parse(
+        await parser.async_parse(
             {"foo": fields.Int(required=True)}, web_request, location="query"
         )

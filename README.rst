@@ -2,25 +2,23 @@
 webargs
 *******
 
-.. image:: https://badgen.net/pypi/v/webargs
-    :target: https://pypi.org/project/webargs/
-    :alt: PyPI version
+|pypi| |build-status| |docs| |marshmallow-support|
 
-.. image:: https://dev.azure.com/sloria/sloria/_apis/build/status/marshmallow-code.webargs?branchName=dev
-    :target: https://dev.azure.com/sloria/sloria/_build/latest?definitionId=6&branchName=dev
+.. |pypi| image:: https://badgen.net/pypi/v/webargs
+    :target: https://pypi.org/project/webargs/
+    :alt: PyPI package
+
+.. |build-status| image:: https://github.com/marshmallow-code/webargs/actions/workflows/build-release.yml/badge.svg
+    :target: https://github.com/marshmallow-code/webargs/actions/workflows/build-release.yml
     :alt: Build status
 
-.. image:: https://readthedocs.org/projects/webargs/badge/
+.. |docs| image:: https://readthedocs.org/projects/webargs/badge/
    :target: https://webargs.readthedocs.io/
    :alt: Documentation
 
-.. image:: https://badgen.net/badge/marshmallow/3
+.. |marshmallow-support| image:: https://badgen.net/badge/marshmallow/3,4?list=1
     :target: https://marshmallow.readthedocs.io/en/latest/upgrading.html
-    :alt: marshmallow 3 compatible
-
-.. image:: https://badgen.net/badge/code%20style/black/000
-    :target: https://github.com/ambv/black
-    :alt: code style: black
+    :alt: marshmallow 3|4 compatible
 
 Homepage: https://webargs.readthedocs.io/
 
@@ -54,9 +52,6 @@ Install
 
     pip install -U webargs
 
-webargs supports Python >= 3.7.
-
-
 Documentation
 =============
 
@@ -66,7 +61,7 @@ Support webargs
 ===============
 
 webargs is maintained by a group of 
-`volunteers <https://webargs.readthedocs.io/en/latest/authors.html>`_.
+`volunteers <https://webargs.readthedocs.io/en/latest/authors/>`_.
 If you'd like to support the future of the project, please consider
 contributing to our Open Collective:
 
@@ -103,7 +98,7 @@ Project Links
 
 - Docs: https://webargs.readthedocs.io/
 - Changelog: https://webargs.readthedocs.io/en/latest/changelog.html
-- Contributing Guidelines: https://webargs.readthedocs.io/en/latest/contributing.html
+- Contributing Guidelines: https://github.com/marshmallow-code/.github/blob/main/CONTRIBUTING.md
 - PyPI: https://pypi.python.org/pypi/webargs
 - Issues: https://github.com/marshmallow-code/webargs/issues
 - Ecosystem / related packages: https://github.com/marshmallow-code/webargs/wiki/Ecosystem

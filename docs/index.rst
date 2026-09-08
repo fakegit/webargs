@@ -41,6 +41,7 @@ has support for:
 
 **Query Parameters**
 ::
+
   $ curl http://localhost:5000/\?name\='Freddie'
   Hello Freddie
 
@@ -119,4 +120,5 @@ Project Info
    changelog
    upgrading
    authors
-   contributing
+   Contributing <https://github.com/marshmallow-code/.github/blob/main/CONTRIBUTING.md>
+   Code of Conduct <https://github.com/marshmallow-code/.github/blob/main/CODE_OF_CONDUCT.md>

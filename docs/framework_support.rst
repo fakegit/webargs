@@ -13,7 +13,8 @@ Flask support is available via the :mod:`webargs.flaskparser` module.
 Decorator Usage
 +++++++++++++++
 
-When using the :meth:`use_args <webargs.flaskparser.FlaskParser.use_args>` decorator, the arguments dictionary will be *before* any URL variable parameters.
+When using the :meth:`use_args <webargs.flaskparser.FlaskParser.use_args>`
+decorator, the arguments dictionary will be *before* any URL variable parameters.
 
 .. code-block:: python
 
@@ -159,7 +160,6 @@ The :class:`webargs.tornadoparser.TornadoParser` parses arguments from a :class:
 
 
     class HelloHandler(tornado.web.RequestHandler):
-
         hello_args = {"name": fields.Str()}
 
         def post(self, id):
@@ -341,7 +341,7 @@ The `parse <webargs.aiohttpparser.AIOHTTPParser.parse>` method of `AIOHTTPParser
     from webargs import fields
     from webargs.aiohttpparser import parser
 
-    handler_args = {"name": fields.Str(missing="World")}
+    handler_args = {"name": fields.Str(load_default="World")}
 
 
     async def handler(request):
@@ -388,7 +388,7 @@ The :meth:`use_args <webargs.aiohttpparser.AIOHTTPParser.use_args>` and :meth:`u
     from webargs import fields
     from webargs.aiohttpparser import use_kwargs
 
-    hello_args = {"name": fields.Str(missing="World")}
+    hello_args = {"name": fields.Str(load_default="World")}
 
     # The following are equivalent
 
@@ -438,7 +438,7 @@ The preferred way to apply decorators to Bottle routes is using the
 
   from bottle import route
 
-  user_args = {"name": fields.Str(missing="Friend")}
+  user_args = {"name": fields.Str(load_default="Friend")}
 
 
   @route("/users/<_id:int>", method="GET", apply=use_args(user_args))

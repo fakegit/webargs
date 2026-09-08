@@ -1,28 +1,36 @@
 repos:
-- repo: https://github.com/asottile/pyupgrade
-  rev: v2.31.0
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.16.6
   hooks:
-  - id: pyupgrade
-    args: ["--py37-plus"]
-- repo: https://github.com/psf/black
-  rev: 22.1.0
+    - id: ruff-check
+    - id: ruff-format
+- repo: https://github.com/python-jsonschema/check-jsonschema
+  rev: 0.38.0
   hooks:
-  - id: black
-- repo: https://github.com/pycqa/flake8
-  rev: 4.0.1
+    - id: check-github-workflows
+    - id: check-readthedocs
+- repo: https://github.com/zizmorcore/zizmor-pre-commit
+  rev: v1.30.0
   hooks:
-  - id: flake8
-    additional_dependencies: [flake8-bugbear==22.1.11]
+    - id: zizmor
 - repo: https://github.com/asottile/blacken-docs
-  rev: v1.12.1
+  rev: 1.20.0
   hooks:
   - id: blacken-docs
-    additional_dependencies: [black==22.1.0]
-    args: ["--target-version", "py37"]
+    additional_dependencies: [black==25.1.0]
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v0.931
+  rev: v2.3.1
   hooks:
   - id: mypy
     language_version: python3
     files: ^src/webargs/
-    additional_dependencies: ["marshmallow>=3,<4", "packaging"]
+    additional_dependencies:
+      - marshmallow>=3,<4
+      - packaging
+      - flask
+
+
+# mypy runs under tox in GitHub Actions, skip it in pre-commit.ci
+ci:
+  skip: [mypy]
+  autoupdate_schedule: monthly

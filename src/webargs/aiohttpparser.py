@@ -2,37 +2,33 @@
 
 Example: ::
 
-    import asyncio
     from aiohttp import web
 
     from webargs import fields
     from webargs.aiohttpparser import use_args
 
 
-    hello_args = {
-        'name': fields.Str(required=True)
-    }
-    @asyncio.coroutine
+    hello_args = {"name": fields.Str(required=True)}
+
+
     @use_args(hello_args)
-    def index(request, args):
-        return web.Response(
-            body='Hello {}'.format(args['name']).encode('utf-8')
-        )
+    async def index(request, args):
+        return web.Response(body="Hello {}".format(args["name"]).encode("utf-8"))
+
 
     app = web.Application()
-    app.router.add_route('GET', '/', index)
+    app.router.add_route("GET", "/", index)
 """
+
 from __future__ import annotations
 
 import typing
 
-from aiohttp import web
-from aiohttp import web_exceptions
-from marshmallow import Schema, ValidationError, RAISE
+from aiohttp import web, web_exceptions
+from marshmallow import RAISE, Schema, ValidationError
 
 from webargs import core
 from webargs.core import json
-from webargs.asyncparser import AsyncParser
 from webargs.multidictproxy import MultiDictProxy
 
 
@@ -47,7 +43,8 @@ class HTTPUnprocessableEntity(web.HTTPClientError):
 
 # Mapping of status codes to exception classes
 # Adapted from werkzeug
-exception_map = {422: HTTPUnprocessableEntity}
+exception_map: dict[int, type[web_exceptions.HTTPException]] = {}
+exception_map[422] = HTTPUnprocessableEntity
 
 
 def _find_exceptions() -> None:
@@ -70,7 +67,7 @@ _find_exceptions()
 del _find_exceptions
 
 
-class AIOHTTPParser(AsyncParser):
+class AIOHTTPParser(core.Parser[web.Request]):
     """aiohttp request argument parser."""
 
     DEFAULT_UNKNOWN_BY_LOCATION: dict[str, str | None] = {
@@ -167,7 +164,7 @@ class AIOHTTPParser(AsyncParser):
             raise LookupError(f"No exception for {error_status_code}")
         headers = error_headers
         raise error_class(
-            body=json.dumps(error.messages).encode("utf-8"),
+            text=json.dumps(error.messages),
             headers=headers,
             content_type="application/json",
         )
@@ -177,9 +174,7 @@ class AIOHTTPParser(AsyncParser):
     ) -> typing.NoReturn:
         error_class = exception_map[400]
         messages = {"json": ["Invalid JSON body."]}
-        raise error_class(
-            body=json.dumps(messages).encode("utf-8"), content_type="application/json"
-        )
+        raise error_class(text=json.dumps(messages), content_type="application/json")
 
 
 parser = AIOHTTPParser()

@@ -12,13 +12,14 @@ Try the following with httpie (a cURL-like utility, http://httpie.org):
     $ http POST :5001/dateadd value=1973-04-10 addend=63
     $ http POST :5001/dateadd value=2014-10-23 addend=525600 unit=minutes
 """
+
 import datetime as dt
 
 from flask import Flask
 from flask_restful import Api, Resource
 
 from webargs import fields, validate
-from webargs.flaskparser import use_args, use_kwargs, parser, abort
+from webargs.flaskparser import abort, parser, use_args, use_kwargs
 
 app = Flask(__name__)
 api = Api(app)
@@ -27,7 +28,7 @@ api = Api(app)
 class IndexResource(Resource):
     """A welcome page."""
 
-    hello_args = {"name": fields.Str(missing="Friend")}
+    hello_args = {"name": fields.Str(load_default="Friend")}
 
     @use_args(hello_args)
     def get(self, args):
@@ -46,12 +47,11 @@ class AddResource(Resource):
 
 
 class DateAddResource(Resource):
-
     dateadd_args = {
         "value": fields.Date(required=False),
         "addend": fields.Int(required=True, validate=validate.Range(min=1)),
         "unit": fields.Str(
-            missing="days", validate=validate.OneOf(["minutes", "days"])
+            load_default="days", validate=validate.OneOf(["minutes", "days"])
         ),
     }
 

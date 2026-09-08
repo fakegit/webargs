@@ -13,14 +13,15 @@ Try the following with httpie (a cURL-like utility, http://httpie.org):
     $ http POST :5001/add x=40 y=2
     $ http GET :5001/users/42
 """
-import random
+
 import functools
+import random
 
 from flask import Flask, request
 from marshmallow import Schema
+
 from webargs import fields
 from webargs.flaskparser import parser
-
 
 app = Flask(__name__)
 
@@ -96,7 +97,7 @@ db = {"users": {}}
 
 
 @route("/", methods=["GET"])
-def index(name: fields.Str(missing="Friend")):  # noqa: F821
+def index(name: fields.Str(load_default="Friend")):  # noqa: F821
     return {"message": f"Hello, {name}!"}
 
 

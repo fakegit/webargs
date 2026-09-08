@@ -1,10 +1,172 @@
 Changelog
 ---------
 
-8.1.1 (Unreleased)
+9.0.0 (unreleased)
 ******************
 
+Features:
+
+* *Backwards-incompatible*: Remove ``__version__``, ``__parsed_version__``, and
+  ``__version_info__`` constants from ``__init__.py`` file. Users should use
+  ``importlib.metadata`` instead (:pr:`1024`).
+
+Other changes:
+
+
+* *Backwards-incompatible*: The ``AsyncParser`` class has been removed, since
+  ``Parser`` now provides async functionality.
+  Users should use ``await parser.async_parse()`` to access the async features
+  of ``Parser``.
+
+* *Backwards-incompatible*: `DelimitedList` and `DelimitedTuple` fields have
+  changed their default `empty_value` from the empty string (`""`) to `missing`.
+  This allows nested fields with a `load_default` to be used to better customize
+  behavior.
+* Drop support for marshmallow 3, which is EOL.
+* Drop support for Python 3.9, which is EOL (:pr:`1019`).
+* Drop support for Bottle < 0.13 (:pr:`1019`).
+* Drop support for Flask < 3.1.0 (:pr:`1023`).
+* Drop support for Django < 5.2.0 (:pr:`1023`).
+* Drop support for Tornado < 6.5.0  (:pr:`1023`).
+* Drop support for Pyramid < 2.0.2 (:pr:`1023`).
+* Drop support for Falcon < 4.1.0 (:pr:`1023`).
+* Drop support for aiohttp < 3.13.0 (:pr:`1023`).
+* Drop support for marshmallow < 4.0.0 (:pr:`1023`).
+
+8.7.1 (2025-10-29)
+******************
+
+Bug fixes:
+
+* Correct the package metadata for ``marshmallow`` versions which are supported
+  by ``webargs``
+* Fix deprecation warning on Python 3.14 (:issue:`1013`). Thanks
+  :user:`decaz` for reporting and for the PR.
+
+Other changes:
+
+* Test against Python 3.14 (:pr:`1016`).
+
+8.7.0 (2025-04-18)
+******************
+
+Other changes:
+
+* Test against Python 3.13 (:pr:`982`).
+* Drop support for Python 3.8, which is EOL (:pr:`981`).
+* Support marshmallow 4 (:pr:`987`).
+
+8.6.0 (2024-09-11)
+******************
+
+Bug fixes:
+
+* Fix the handling of invalid JSON bodies in the ``bottle`` parser to support
+  ``bottle`` versions ``>=0.13`` (:pr:`974`).
+
+Other changes:
+
+* ``MultiDictProxy`` now inherits from ``MutableMapping`` rather than
+    ``Mapping`` (:pr:`960`).
+
+8.5.0 (2024-04-25)
+******************
+
+Other changes:
+
+* Test against Python 3.12.
+
+* Async location loading now supports loader functions which are not themselves
+  async, but which return an awaitable result. This means that users who are
+  already handling awaitable objects can return them from non-async loaders and
+  expect ``webargs`` to ``await`` them. This allows some async interactions
+  with supported frameworks, where the ``webargs``-provided parser returns a
+  framework object and the framework can be set to return awaitables, e.g.,
+  the Falcon parser. Thanks :user:`j0k2r` for the PR! (:pr:`935`)
+
+8.4.0 (2024-01-07)
+******************
+
+Features:
+
+* Add a new class attribute, ``empty_value`` to ``DelimitedList`` and
+  ``DelimitedTuple``, with a default of ``""``.
+  This controls the value deserialized when an empty string is seen.
+
+``empty_value`` can be used to handle types other than strings more gracefully, e.g.
+
+.. code-block:: python
+
+    from webargs import fields
+
+
+    class IntList(fields.DelimitedList):
+        empty_value = 0
+
+
+    myfield = IntList(fields.Int())
+
+.. note::
+
+    ``empty_value`` will be changing in webargs v9.0 to be ``missing`` by
+    default. This will allow use of fields with ``load_default`` to specify
+    handling of the empty value.
+
+* The rule for default argument names has been made configurable by overriding
+  the ``get_default_arg_name`` method. This is described in the argument
+  passing documentation.
+
+Other changes:
+
+* Drop support for Python 3.7, which is EOL.
+* Type annotations for ``FlaskParser`` have been improved.
+
+8.3.0 (2023-07-10)
+******************
+
+Features:
+
+* ``webargs.Parser`` now inherits from ``typing.Generic`` and is parametrizable
+  over the type of the request object. Various framework-specific parsers are
+  parametrized over their relevant request object classes.
+
+* ``webargs.Parser`` and its subclasses now support passing arguments as a
+  single keyword argument without expanding the parsed data into its
+  components. For more details, see advanced docs on
+  ``Argument Passing and arg_name``.
+
+Other changes:
+
+* Type annotations have been improved to allow ``Mapping`` for dict-like
+  schemas where previously ``dict`` was used. This makes the type covariant
+  rather than invariant (:issue:`836`).
+
+* Test against Python 3.11 (:pr:`787`).
+
+8.2.0 (2022-07-11)
+******************
+
+Features:
+
+* A new method, ``webargs.Parser.async_parse``, can be used for async-aware
+  parsing from the base parser class. This can handle async location loader
+  functions and async error handlers.
+
+* ``webargs.Parser.use_args`` and ``use_kwargs`` can now be used to decorate
+  async functions, and will use  ``async_parse`` if the decorated function is
+  also async. They will call the non-async ``parse`` method when used to
+  decorate non-async functions.
+
+* As a result of the changes to ``webargs.Parser``, ``FlaskParser``,
+  ``DjangoParser``, and ``FalconParser`` now all support async views.
+  Thanks :user:`Isira-Seneviratne` for the initial PR.
+
 Changes:
+
+* The implementation of ``AsyncParser`` has changed. Now that
+  ``webargs.Parser`` has built-in support for async usage, the primary
+  purpose of ``AsyncParser`` is to redefine ``parse`` as an alias for
+  ``async_parse``
 
 * Set ``python_requires>=3.7.2`` in package metadata (:pr:`692`).
   Thanks :user:`kasium` for the PR.
@@ -159,8 +321,7 @@ This allows usages like
     @parser.use_kwargs(
         {"q1": ma.fields.Int(), "q2": ma.fields.Int()}, location="query", unknown=ma.EXCLUDE
     )
-    def foo(q1, q2):
-        ...
+    def foo(q1, q2): ...
 
 * Defaults for ``unknown`` may be customized on parser classes via
   ``Parser.DEFAULT_UNKNOWN_BY_LOCATION``, which maps location names to values
@@ -172,6 +333,7 @@ Usages are varied, but include
 
     import marshmallow as ma
     from webargs.flaskparser import FlaskParser
+
 
     # as well as...
     class MyParser(FlaskParser):
@@ -346,15 +508,13 @@ Refactoring:
         },
         locations=("query", "headers"),
     )
-    def foo(q1, q2, h1):
-        ...
+    def foo(q1, q2, h1): ...
 
 
     # webargs 6.x
     @parser.use_args({"q1": ma.fields.Int(), "q2": ma.fields.Int()}, location="query")
     @parser.use_args({"h1": ma.fields.Int()}, location="headers")
-    def foo(q1, q2, h1):
-        ...
+    def foo(q1, q2, h1): ...
 
 * The `location_handler` decorator has been removed and replaced with
   `location_loader`. `location_loader` serves the same purpose (letting you
@@ -1090,7 +1250,7 @@ Your code will need to be updated to use ``Fields`` rather than ``Args``.
     args = {
         "name": fields.Str(required=True),
         "password": fields.Str(validate=lambda p: len(p) >= 6),
-        "display_per_page": fields.Int(missing=10),
+        "display_per_page": fields.Int(load_default=10),
         "nickname": fields.List(fields.Str()),
         "content_type": fields.Str(load_from="Content-Type"),
         "location": fields.Nested({"city": fields.Str(), "state": fields.Str()}),

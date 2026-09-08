@@ -1,8 +1,8 @@
-import pytest
 import falcon.testing
+import pytest
 
+from tests.apps.falcon_app import create_app, create_async_app
 from webargs.testing import CommonTestCase
-from tests.apps.falcon_app import create_app
 
 
 class TestFalconParser(CommonTestCase):
@@ -72,3 +72,17 @@ class TestFalconParser(CommonTestCase):
             json={"name": "Fred"},
         )
         assert res.json == {"name": "Fred"}
+
+    @pytest.mark.usefixtures("current_loop")
+    def test_parse_querystring_args_async(self):
+        app = create_async_app()
+        client = falcon.testing.TestClient(app)
+        assert client.simulate_get("/async_echo?name=Fred").json == {"name": "Fred"}
+
+    @pytest.mark.usefixtures("current_loop")
+    def test_async_use_args_decorator(self):
+        app = create_async_app()
+        client = falcon.testing.TestClient(app)
+        assert client.simulate_get("/async_echo_use_args?name=Fred").json == {
+            "name": "Fred"
+        }

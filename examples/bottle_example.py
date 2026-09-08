@@ -12,14 +12,15 @@ Try the following with httpie (a cURL-like utility, http://httpie.org):
     $ http POST :5001/dateadd value=1973-04-10 addend=63
     $ http POST :5001/dateadd value=2014-10-23 addend=525600 unit=minutes
 """
+
 import datetime as dt
 
-from bottle import route, run, error, response
+from bottle import error, response, route, run
+
 from webargs import fields, validate
 from webargs.bottleparser import use_args, use_kwargs
 
-
-hello_args = {"name": fields.Str(missing="Friend")}
+hello_args = {"name": fields.Str(load_default="Friend")}
 
 
 @route("/", method="GET", apply=use_args(hello_args))
@@ -40,7 +41,9 @@ def add(x, y):
 dateadd_args = {
     "value": fields.Date(required=False),
     "addend": fields.Int(required=True, validate=validate.Range(min=1)),
-    "unit": fields.Str(missing="days", validate=validate.OneOf(["minutes", "days"])),
+    "unit": fields.Str(
+        load_default="days", validate=validate.OneOf(["minutes", "days"])
+    ),
 }
 
 

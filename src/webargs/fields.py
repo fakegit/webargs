@@ -1,7 +1,6 @@
 """Field classes.
 
-Includes all fields from `marshmallow.fields` in addition to a custom
-`Nested` field and `DelimitedList`.
+Includes all fields from `marshmallow.fields` in addition to `DelimitedList`.
 
 All fields can optionally take a special `location` keyword argument, which
 tells webargs where to parse the request argument from.
@@ -13,31 +12,17 @@ tells webargs where to parse the request argument from.
         "content_type": fields.Str(data_key="Content-Type", location="headers"),
     }
 """
+
 from __future__ import annotations
+
+import typing
 
 import marshmallow as ma
 
 # Expose all fields from marshmallow.fields.
-from marshmallow.fields import *  # noqa: F40
+from marshmallow.fields import *  # noqa: F403
 
 __all__ = ["DelimitedList", "DelimitedTuple"] + ma.fields.__all__
-
-
-class Nested(ma.fields.Nested):  # type: ignore[no-redef]
-    """Same as `marshmallow.fields.Nested`, except can be passed a dictionary as
-    the first argument, which will be converted to a `marshmallow.Schema`.
-
-    .. note::
-
-        The schema class here will always be `marshmallow.Schema`, regardless
-        of whether a custom schema class is set on the parser. Pass an explicit schema
-        class if necessary.
-    """
-
-    def __init__(self, nested, *args, **kwargs):
-        if isinstance(nested, dict):
-            nested = ma.Schema.from_dict(nested)
-        super().__init__(nested, *args, **kwargs)
 
 
 class DelimitedFieldMixin:
@@ -57,6 +42,7 @@ class DelimitedFieldMixin:
     delimiter: str = ","
     # delimited fields set is_multiple=False for webargs.core.is_multiple
     is_multiple: bool = False
+    empty_value: typing.Any = ma.missing
 
     def _serialize(self, value, attr, obj, **kwargs):
         # serializing will start with parent-class serialization, so that we correctly
@@ -70,6 +56,8 @@ class DelimitedFieldMixin:
         if not isinstance(value, (str, bytes)):
             raise self.make_error("invalid")
         values = value.split(self.delimiter) if value else []
+        # convert empty strings to the empty value; typically "" and therefore a no-op
+        values = [v or self.empty_value for v in values]
         return super()._deserialize(values, attr, data, **kwargs)
 
 
@@ -110,6 +98,12 @@ class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple):
 
     default_error_messages = {"invalid": "Not a valid delimited tuple."}
 
-    def __init__(self, tuple_fields, *, delimiter: str | None = None, **kwargs):
+    def __init__(
+        self,
+        tuple_fields,
+        *,
+        delimiter: str | None = None,
+        **kwargs,
+    ):
         self.delimiter = delimiter or self.delimiter
         super().__init__(tuple_fields, **kwargs)

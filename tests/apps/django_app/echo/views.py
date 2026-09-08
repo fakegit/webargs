@@ -1,18 +1,19 @@
+import inspect
+
+import marshmallow as ma
 from django.http import HttpResponse
 from django.views.generic import View
-import marshmallow as ma
 
-from webargs import fields
-from webargs.djangoparser import parser, use_args, use_kwargs
+from webargs import fields, validate
 from webargs.core import json
+from webargs.djangoparser import parser, use_args, use_kwargs
 
-
-hello_args = {"name": fields.Str(missing="World", validate=lambda n: len(n) >= 3)}
+hello_args = {"name": fields.Str(load_default="World", validate=validate.Length(min=3))}
 hello_multiple = {"name": fields.List(fields.Str())}
 
 
 class HelloSchema(ma.Schema):
-    name = fields.Str(missing="World", validate=lambda n: len(n) >= 3)
+    name = fields.Str(load_default="World", validate=validate.Length(min=3))
 
 
 hello_many_schema = HelloSchema(many=True)
@@ -26,13 +27,25 @@ def json_response(data, **kwargs):
 
 
 def handle_view_errors(f):
-    def wrapped(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except ma.ValidationError as err:
-            return json_response(err.messages, status=422)
-        except json.JSONDecodeError:
-            return json_response({"json": ["Invalid JSON body."]}, status=400)
+    if inspect.iscoroutinefunction(f):
+
+        async def wrapped(*args, **kwargs):
+            try:
+                return await f(*args, **kwargs)
+            except ma.ValidationError as err:
+                return json_response(err.messages, status=422)
+            except json.JSONDecodeError:
+                return json_response({"json": ["Invalid JSON body."]}, status=400)
+
+    else:
+
+        def wrapped(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except ma.ValidationError as err:
+                return json_response(err.messages, status=422)
+            except json.JSONDecodeError:
+                return json_response({"json": ["Invalid JSON body."]}, status=400)
 
     return wrapped
 
@@ -40,6 +53,13 @@ def handle_view_errors(f):
 @handle_view_errors
 def echo(request):
     return json_response(parser.parse(hello_args, request, location="query"))
+
+
+@handle_view_errors
+async def async_echo(request):
+    return json_response(
+        await parser.async_parse(hello_args, request, location="query")
+    )
 
 
 @handle_view_errors
@@ -60,6 +80,12 @@ def echo_json_or_form(request):
 @handle_view_errors
 @use_args(hello_args, location="query")
 def echo_use_args(request, args):
+    return json_response(args)
+
+
+@handle_view_errors
+@use_args(hello_args, location="query")
+async def async_echo_use_args(request, args):
     return json_response(args)
 
 
@@ -135,7 +161,7 @@ def echo_cookie(request):
 
 @handle_view_errors
 def echo_file(request):
-    args = {"myfile": fields.Field()}
+    args = {"myfile": fields.Raw()}
     result = parser.parse(args, request, location="files")
     myfile = result["myfile"]
     content = myfile.read().decode("utf8")
